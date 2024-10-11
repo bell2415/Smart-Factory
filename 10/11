@@ -3,11 +3,16 @@
 #include <BH1750.h>
 #include <Wire.h>
 #include "DHT.h"
+#include <Adafruit_SSD1306.h>
+#include <Adafruit_GFX.h>
+#include <gfxfont.h>
 
 #define PAYLOAD_MAXSIZE 64
 #define DHTPIN 4  
 #define DHTTYPE DHT11
-#define LED_PIN 2  // 내장 LED 핀 (ESP32의 경우 GPIO 2)
+#define LED_PIN D2  // D2 핀에 연결된 LED (ESP32 보드에서 D2에 해당하는 핀)
+#define OLED_RESET 0  
+Adafruit_SSD1306 display(OLED_RESET);
 
 DHT dht(DHTPIN, DHTTYPE);  // DHT11 센서 설정
 BH1750 lightMeter;         // BH1750 조도 센서 설정
@@ -23,6 +28,10 @@ char* server = "192.168.0.43";
 
 WiFiClient wifiClient; 
 PubSubClient client(server, 1883, wifiClient);
+
+unsigned long lastSensorReadTime = 0;
+unsigned long lastLedBlinkTime = 0;
+bool isLedOn = false;
 
 void setup() {
   Serial.begin(9600);
@@ -50,55 +59,155 @@ void setup() {
   Wire.begin();
   lightMeter.begin();
 
-  // 내장 LED 핀 설정
+  // OLED 디스플레이 초기화
+  display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+  display.clearDisplay();
+  display.setTextColor(WHITE);
+  display.setTextSize(1);  // 텍스트 크기 설정
+
+  // D2에 연결된 LED 핀 설정
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, HIGH); // LED 초기 상태는 꺼진 상태 (HIGH가 꺼짐)
 }
 
 void loop() {
-  char payload[PAYLOAD_MAXSIZE];
-  
-  // DHT11 센서에서 온도와 습도 읽기
-  float h = dht.readHumidity();
-  float t = dht.readTemperature();
-  
-  // BH1750 센서에서 조도 값 읽기
-  float l = lightMeter.readLightLevel();
+  // 현재 시간 가져오기
+  unsigned long currentMillis = millis();
 
-  // 센서 값이 유효한지 확인
-  if (isnan(h) || isnan(t) || isnan(l)) {
-    Serial.println("Failed to read from sensors!");
-    return;
+  // 2초마다 센서 데이터를 읽고 MQTT로 전송
+  if (currentMillis - lastSensorReadTime >= 2000) {
+    lastSensorReadTime = currentMillis;
+    
+    // DHT11 센서에서 온도와 습도 읽기
+    float h = dht.readHumidity();
+    float t = dht.readTemperature();
+    
+    // BH1750 센서에서 조도 값 읽기
+    float l = lightMeter.readLightLevel();
+
+    // 센서 값이 유효한지 확인
+    if (isnan(h) || isnan(t) || isnan(l)) {
+      Serial.println("Failed to read from sensors!");
+      return;
+    }
+
+    // JSON 형태의 메시지 생성
+    char payload[PAYLOAD_MAXSIZE];
+    String sPayload = "{'Temp':" 
+                      + String(t, 1) 
+                      + ",'Humi':" 
+                      + String(h, 1) 
+                      + ",'Lux':" 
+                      + String(l, 1) 
+                      + "}";
+    
+    // String을 char 배열로 변환하여 MQTT로 퍼블리시
+    sPayload.toCharArray(payload, PAYLOAD_MAXSIZE);
+    client.publish(topic, payload);
+
+    // 시리얼 모니터에 출력
+    Serial.print(String(topic) + " ");
+    Serial.println(payload);
+
+    // OLED 디스플레이에 센서 데이터 또는 경고 메시지 표시
+    display.clearDisplay();
+    if (l > 1000) {
+      // 조도 값이 1000 이상일 때 WARNING 메시지 표시
+      display.setTextSize(2);  // 텍스트 크기 2로 설정
+      display.setCursor(0, 20);
+      display.println("WARNING!");
+      display.setTextSize(1);  // 텍스트 크기 다시 1로 설정
+    } else {
+      // 조도 값이 1000 이하일 때 기본 센서 데이터 표시
+      display.setCursor(0, 0);
+      display.println("Sensor Data");
+      display.print("Temp: ");
+      display.print(t);
+      display.println(" C");
+      display.print("Humi: ");
+      display.print(h);
+      display.println(" %");
+      display.print("Lux: ");
+      display.print(l);
+      display.println(" lx");
+    }
+    display.display();
+    
+    // 조도 값에 따라 LED 상태 업데이트
+    if (l > 1000) {
+      Serial.println("Lux over 1000! Blinking LED...");
+    } else {
+      // 조도가 1000 이하일 때 LED 끄기
+      digitalWrite(LED_PIN, HIGH);
+      isLedOn = false;
+    }
   }
 
-  // JSON 형태의 메시지 생성
-  String sPayload = "{'Temp':" 
-                    + String(t, 1) 
-                    + ",'Humi':" 
-                    + String(h, 1) 
-                    + ",'Lux':" 
-                    + String(l, 1) 
-                    + "}";
-                    
-  // String을 char 배열로 변환하여 MQTT로 퍼블리시
-  sPayload.toCharArray(payload, PAYLOAD_MAXSIZE);
-  client.publish(topic, payload);
-
-  // 시리얼 모니터에 출력
-  Serial.print(String(topic) + " ");
-  Serial.println(payload);
-
-  // 조도 값이 1000 lux 이상일 때 내장 LED 깜빡임
-  if (l > 1000) {
-    Serial.println("Lux over 1000! Blinking LED...");
-    digitalWrite(LED_PIN, LOW);   // LED 켜기
-    delay(500);                   // 0.5초 대기
-    digitalWrite(LED_PIN, HIGH);  // LED 끄기
-    delay(500);                   // 0.5초 대기
-  } else {
-    digitalWrite(LED_PIN, HIGH);  // 조도가 1000 이하일 때 LED 끄기
+  // 조도가 1000 이상일 때 0.5초마다 LED 상태를 반전 (깜빡임)
+  if (lightMeter.readLightLevel() > 1000) {
+    if (currentMillis - lastLedBlinkTime >= 500) {
+      lastLedBlinkTime = currentMillis;
+      
+      // LED 상태 반전
+      isLedOn = !isLedOn;
+      digitalWrite(LED_PIN, isLedOn ? LOW : HIGH); // LOW가 켜짐, HIGH가 꺼짐
+    }
   }
 
-  // 2초 대기 후 반복
-  delay(2000);
+  client.loop(); // MQTT 메시지 대기 및 처리
 }
+
+=========================라즈베리파이==========================
+nano SubHumiTempInsertMod.py
+---------------------------------------------------------------
+from influxdb import InfluxDBClient
+import paho.mqtt.client as mqtt
+
+dbClient = InfluxDBClient(host='localhost', port=8086, username='influx_ship', password='1234', database='dbriatech')
+
+def on_connect( client, userdata, flags, reason_code, properties ):
+   print(f'connect with result code:{reason_code}' )
+   client.subscribe("MyOffice/Indoor/#")
+
+def on_message( client, userdata, msg ):
+   print( msg.topic +' '+str(msg.payload) )
+   topic = msg.topic.split('/')
+
+   loc = topic[0]
+   subloc = topic[1]
+   payload = eval(msg.payload)
+
+   json_body = [ ]
+   data_point = {
+      'measurement':'sensors',
+      'tags': {'Location': '', 'SubLocation':''},
+      'fields': {'Temp': 0.0, 'Humi':0.0}
+      }
+   data_point['tags']['Location'] = topic[0]
+   data_point['tags']['SubLocation'] = topic[1]
+   data_point['fields']['Temp'] = payload['Temp']
+   data_point['fields']['Humi'] = payload['Humi']
+   data_point['fields']['Lux'] = payload['Lux']
+   json_body.append(data_point)
+   dbClient.write_points( json_body )
+
+mqttc = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2 )
+mqttc.username_pw_set(username="mqtt_boy", password="1234")
+mqttc.on_connect = on_connect
+mqttc.on_message = on_message
+mqttc.connect("localhost", 1883, 60)
+mqttc.loop_forever( )
+--------------------------------------------------------------
+pip install --upgrade paho-mqtt
+python SubHumiTempInsertMod.py
+
+다른 라즈베리파이(influx)
+다른 라즈베리파이(use dbriatech)
+다른 라즈베리파이(select * from sensors)
+
+?다른라즈베리 파이(mosquitto_sub -t MyOffice/# -u mqtt_boy -P 1234)
+-----------------------------------------
+다른 라즈베리파이(drop measurement sensors)->DB에 저장된거 다 없어짐
+=========================================================================================
+그래프그리기
+http://192.168.0.2:3000/d/fdz4sj33o46wwf/dashboard01?orgId=1&from=now-15m&to=now&refresh=5s
