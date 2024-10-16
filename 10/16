@@ -1,1 +1,396 @@
+------------------------------------하얀창만들기-----------------------------------------------------------
+using OpenCvSharp;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics.Eventing.Reader;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace Mat02
+{
+    internal class Program
+    {
+        static void Main(string[] args)
+        {
+            Console.WriteLine(Cv2.GetVersionString());
+            Mat image1 = new Mat(300, 400, MatType.CV_8U, new Scalar(255));
+            string title1 = "white창 제어";
+
+            Cv2.NamedWindow(title1, WindowFlags.AutoSize);
+
+            Cv2.ImShow(title1, image1);
+
+            Cv2.WaitKey(0);
+            Cv2.DestroyAllWindows();
+        }
+    }
+}
+--------------------------------예제4.1.2------------------------------------------------------------------
+using OpenCvSharp;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics.Eventing.Reader;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace Mat02
+{
+    internal class Program
+    {
+        static void Main(string[] args)
+        {
+            Mat image = new Mat(300, 400, MatType.CV_8UC1, new Scalar(255));
+            string title1 = "창 크기변경1 - AUTOSIZE";
+            string title2 = "창 크기변경2 - NORMAL";
+
+            Cv2.NamedWindow(title1, WindowFlags.AutoSize);
+            Cv2.NamedWindow(title2, WindowFlags.Normal);
+
+            Cv2.ResizeWindow(title1, 500, 200);
+            Cv2.ResizeWindow(title2, 500, 200);
+
+            Cv2.ImShow(title1, image);
+            Cv2.ImShow(title2, image);
+            Cv2.WaitKey(0);
+            Cv2.DestroyAllWindows();
+
+        }
+    }
+}
+-----------------------------------------------------------------
+using OpenCvSharp;
+using System;
+using System.Collections.Specialized;
+
+namespace Opencv1016_2
+{
+    internal class Program
+    {
+        static void Main(string[] args)
+        {
+            Console.WriteLine(Cv2.GetVersionString());
+
+            Mat image1 = new Mat(200, 300, MatType.CV_8U, new Scalar(255));
+            //string title1 = "white창 제어";
+            string title1 = "키보드 이벤트 - Window-autosize";
+            Cv2.ImShow("키보드 이벤트", image1);
+            int a;
+            while (true)
+            {
+                int key = Cv2.WaitKeyEx(100);
+                if (key == 27) // ESC
+                    break;
+
+                switch (key)
+                {
+                    case (int)'a':
+                        {
+                            Console.WriteLine("a키를 입력");
+                            break;
+                        }
+                    case (int)'A':
+                        {
+                            Console.WriteLine("A키를 입력");
+                            break;
+                        }
+                    case (int)'b':
+                        {
+                            Console.WriteLine("b키를 입력");
+                            break;
+                        }
+                    case (int)'B':
+                        {
+                            Console.WriteLine("B키를 입력");
+                            break;
+                        }
+                    case 0X250000:
+                        {
+                            Console.WriteLine("왼쪽화살표를 입력");
+                            break;
+                        }
+                    case 0X260000:
+                        {
+                            Console.WriteLine("위쪽화살표를 입력");
+                            break;
+                        }
+                    case 0X270000:
+                        {
+                            Console.WriteLine("오른쪽화살표를 입력");
+                            break;
+                        }
+                    case 0X280000:
+                        {
+                            Console.WriteLine("아래쪽화살표를 입력");
+                            break;
+                        }
+
+                }
+            }
+
+            Cv2.DestroyAllWindows();
+        }
+    }
+}
+---------------------------------------------------------------------------
+using OpenCvSharp;
+
+namespace ConsoleApp109
+{
+    class StringUtil
+    {
+        public void PutString(Mat frame, string text, Point pt, double value)
+        {
+            text += value.ToString();
+            Point shade = new Point(pt.X + 2, pt.Y + 2);
+            int font = (int)HersheyFonts.HersheySimplex;
+
+            // 그림자 효과 
+            Cv2.PutText(frame, text, shade, (HersheyFonts)font, 0.7, Scalar.Black, 2);
+
+            // 실제 텍스트 
+            Cv2.PutText(frame, text, pt, (HersheyFonts)font, 0.7, new Scalar(120, 200, 90), 2);
+        }
+    }
+    internal class Program
+    {
+        static void Main(string[] args)
+        {
+            // 웹캠 연결
+            VideoCapture capture = new VideoCapture(0);
+            if (!capture.IsOpened())
+            {
+                Console.WriteLine("카메라가 연결되지 않았습니다.");
+                return;
+            }
+
+            // 카메라 속성 출력
+            Console.WriteLine("너비: " + capture.Get(VideoCaptureProperties.FrameWidth));
+            Console.WriteLine("높이: " + capture.Get(VideoCaptureProperties.FrameHeight));
+            Console.WriteLine("노출: " + capture.Get(VideoCaptureProperties.Exposure));
+            Console.WriteLine("밝기: " + capture.Get(VideoCaptureProperties.Brightness));
+
+            Mat frame = new Mat();
+            while (true)
+            {
+                // 카메라에서 프레임 읽기
+                capture.Read(frame);
+                if (frame.Empty())
+                    break;
+
+                // 노출 정보 출력
+                StringUtil su = new StringUtil();
+                su.PutString(frame, "EXPOS: ", new Point(10, 40), capture.Get(VideoCaptureProperties.Exposure));
+
+                Cv2.ImShow("카메라 영상보기", frame);
+
+                // 키 입력 대기 (30ms)
+                if (Cv2.WaitKey(30) >= 0)
+                    break;
+            }
+            Cv2.DestroyAllWindows();
+        }
+    }
+}
+----------------------------------------------------
+using OpenCvSharp;
+
+namespace ConsoleApp110
+{
+    internal class Program
+    {
+        static void Main(string[] args)
+        {
+            VideoCapture capture = new VideoCapture(0);
+
+            if(!capture.IsOpened())
+            {
+                Console.WriteLine("카메라가 연결되지 않았습니다");
+                return;
+            }
+
+            //카메라 속성
+            Console.WriteLine("너비 : " + capture.Get(VideoCaptureProperties.FrameWidth));
+            Console.WriteLine("높이 : " + capture.Get(VideoCaptureProperties.FrameHeight));
+            Console.WriteLine("노출 : " + capture.Get(VideoCaptureProperties.Exposure));
+            Console.WriteLine("밝기 : " + capture.Get(VideoCaptureProperties.Brightness));
+
+            //핵심코드
+            Mat frame = new Mat();
+
+            while(true)
+            {
+                //카메라에서 프레임 읽기
+                capture.Read(frame);
+                if(frame.Empty())
+                {
+                    Console.WriteLine("frame에 문제가 있습니다.");
+                    return;
+                }
+
+                Cv2.ImShow("기본카메라", frame);
+
+                //종료법
+                if (Cv2.WaitKey(30) >= 0) break;
+            }
+            Cv2.DestroyAllWindows();
+        }
+
+    }
+}
+-------------------------------흑백화면----------------------------------------
+using OpenCvSharp;
+
+namespace ConsoleApp110
+{
+    internal class Program
+    {
+        static void Main(string[] args)
+        {
+            VideoCapture capture = new VideoCapture(0);
+
+            if(!capture.IsOpened())
+            {
+                Console.WriteLine("카메라가 연결되지 않았습니다");
+                return;
+            }
+
+            //카메라 속성
+            Console.WriteLine("너비 : " + capture.Get(VideoCaptureProperties.FrameWidth));
+            Console.WriteLine("높이 : " + capture.Get(VideoCaptureProperties.FrameHeight));
+            Console.WriteLine("노출 : " + capture.Get(VideoCaptureProperties.Exposure));
+            Console.WriteLine("밝기 : " + capture.Get(VideoCaptureProperties.Brightness));
+
+            //핵심코드
+            Mat frame = new Mat();
+
+            while(true)
+            {
+                //카메라에서 프레임 읽기
+                capture.Read(frame);
+                if(frame.Empty())
+                {
+                    Console.WriteLine("frame에 문제가 있습니다.");
+                    return;
+                }
+                //흑백효과
+                Mat black =frame.Clone();
+                Cv2.CvtColor(frame, black, ColorConversionCodes.BGR2GRAY);
+
+                //Cv2.ImShow("기본카메라", frame);
+                Cv2.ImShow("기본카메라", black);
+
+                //종료법
+                if (Cv2.WaitKey(30) >= 0) break;
+            }
+            Cv2.DestroyAllWindows();
+        }
+
+    }
+}
+--------------------------------------------------
+using OpenCvSharp;
+
+class Program
+{
+    static Mat image;
+    static string title = "트랙바 이벤트";
+
+    static void onChange(int value, IntPtr userdata)
+    {
+        int add_value = value - 130;
+        System.Console.WriteLine("추가 화소값: " + add_value);
+
+        // 새로운 Mat을 생성하고, Add 함수를 사용하여 값을 더함
+        Mat tmp = new Mat();
+        Cv2.Add(image, new Scalar(add_value), tmp);
+
+        Cv2.ImShow(title, tmp);
+    }
+
+    static void Main(string[] args)
+    {
+        int value = 128;
+        image = new Mat(300, 400, MatType.CV_8UC1, Scalar.All(128));
+
+        Cv2.NamedWindow(title, WindowFlags.AutoSize);
+        Cv2.CreateTrackbar("밝기값", title, ref value, 255, onChange);
+
+        Cv2.ImShow(title, image);
+        Cv2.WaitKey(0);
+    }
+}
+--------------------------------------------------------------------------
+using OpenCvSharp;
+
+namespace Event_Mouse
+{
+    internal class Program
+    {
+        private static void onMouse(MouseEventTypes @event, int x, int y, MouseEventFlags flags, IntPtr userdata)
+        {
+            switch (@event)
+            {
+                case MouseEventTypes.LButtonDown:
+                    Console.WriteLine("마우스 왼쪽 버튼이 눌러졌습니다.");
+                    break;
+                case MouseEventTypes.RButtonDown:
+                    Console.WriteLine("마우스 오른쪽 버튼이 눌러졌습니다.");
+                    break;
+            }
+        }
+        static void Main(string[] args)
+        {
+            Mat image = new Mat(200, 300, MatType.CV_8UC3, new Scalar(255, 255, 255));
+
+            Cv2.ImShow("마우스 이벤트1", image);
+
+            Cv2.SetMouseCallback("마우스 이벤트1", onMouse);
+            Cv2.WaitKey(0);
+            Cv2.DestroyAllWindows();
+        }
+
+    }
+}
+-----------------------------------------------------------------------------
+using OpenCvSharp;
+
+namespace DrawCircle
+{
+    internal class Program
+    {
+        static void Main(string[] args)
+        {
+            Scalar orange = new Scalar(0, 165, 255);
+            Scalar blue = new Scalar(255, 0, 0);
+            Scalar magenta = new Scalar(255, 0, 255);
+
+            Mat image = new Mat(300, 500, MatType.CV_8UC3, new Scalar(255, 255, 255));
+
+            Size size = image.Size();
+            Point center = new Point(size.Width / 2, size.Height / 2);
+
+            Point pt1 = new Point(70, 50);
+            Point pt2 = new Point(350, 220);
+
+            Cv2.Circle(image, center, 100, blue);
+            Cv2.Circle(image, pt1, 80, orange, 2);
+            Cv2.Circle(image, pt2, 60, magenta, -1);
+
+            Cv2.PutText(image, "center_blue", center, HersheyFonts.HersheyComplex, 1.2, blue);
+            Cv2.PutText(image, "pt1_orange", pt1, HersheyFonts.HersheyComplex, 0.8, orange);
+            //Cv2.PutText(image, "pt2_magenta", pt2 + Point(2, 2), HersheyFonts.HersheyComplex, 0.5, new Scalar(0, 0, 0), 2);
+            Point newPt2 = new Point(pt2.X + 2, pt2.Y + 2);
+            Cv2.PutText(image, "pt2_magenta", newPt2, HersheyFonts.HersheyComplex, 0.5, new Scalar(0, 0, 0), 2);
+            Cv2.PutText(image, "pt2_magenta", pt2, HersheyFonts.HersheyComplex, 0.5, magenta, 1);
+
+            Cv2.ImShow("원그리기", image);
+
+            Cv2.WaitKey(0);
+            Cv2.DestroyAllWindows();
+        }
+    }
+}
+------------------------------------------------------------------------------------------------------------
 
