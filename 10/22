@@ -1,0 +1,305 @@
+using OpenCvSharp;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace CalHist_Level1
+{
+    internal class Program
+    {
+        static void CalcHisto(Mat image, out Mat hist, int bins, int rangeMax = 256)
+        {
+            hist = new Mat(bins, 1, MatType.CV_32F, new Scalar(0));
+            float gap = rangeMax / (float)bins;
+
+            for (int i = 0; i < image.Rows; i++)
+            {
+                for (int j = 0; j < image.Cols; j++)
+                {
+                    int idx = (int)(image.At<byte>(i, j) / gap);
+                    hist.Set<float>(idx, hist.At<float>(idx) + 1);
+                }
+            }
+        }
+        static void Main(string[] args)
+        {
+            Mat image = Cv2.ImRead("c:\\Temp\\1.jpg", ImreadModes.Grayscale);
+            if (image.Empty())
+            {
+                Console.WriteLine("이미지를 로드할 수 없습니다.");
+                return;
+            }
+
+            Mat hist;
+            CalcHisto(image, out hist, 256);   // 히스토그램 계산
+
+            //Console.Write(hist.Dump());
+            for (int i = 0; i < hist.Rows; i++)
+            {
+                Console.Write(hist.At<float>(i) + ", ");
+            }
+            Console.WriteLine();
+
+            Cv2.ImShow("image", image);
+            Cv2.WaitKey();
+        }
+    }
+}
+
+
+/*
+
+226, 73, 106, 124, 180, 218, 239, 300, 335, 404, 447, 473, 482, 533, 605, 640, 669, 670, 728, 680, 652, 615, 691, 586, 604, 587, 557, 567, 541, 520, 561, 502, 493, 507, 461, 485, 459, 455, 445, 433, 393, 456, 374, 361, 375, 378, 368, 354, 332, 326, 313, 355, 321, 327, 271, 299, 285, 278, 268, 274, 271, 246, 263, 248, 240, 216, 251, 242, 236, 244, 262, 207, 227, 207, 231, 233, 233, 221, 224, 204, 240, 238, 232, 216, 237, 238, 223, 253, 255, 243, 265, 271, 265, 301, 372, 389, 484, 507, 416, 374, 337, 280, 261, 246, 254, 213, 226, 215, 212, 194, 197, 220, 191, 194, 187, 200, 170, 171, 148, 150, 177, 151, 136, 145, 123, 119, 127, 120, 122, 118, 131, 114, 126, 100, 132, 89, 115, 101, 96, 99, 89, 98, 90, 110, 117, 102, 115, 106, 102, 131, 141, 159, 243, 227, 225, 238, 292, 345, 351, 322, 381, 339, 397, 546, 396, 370, 441, 399, 442, 824, 972, 1234, 1059, 625, 526, 326, 246, 249, 228, 237, 208, 209, 180, 238, 229, 219, 205, 241, 249, 264, 285, 335, 411, 656, 771, 815, 736, 618, 537, 495, 576, 569, 486, 527, 420, 401, 422, 360, 303, 295, 268, 206, 196, 134, 168, 150, 169, 136, 142, 131, 129, 129, 118, 121, 130, 133, 116, 119, 122, 129, 123, 129, 132, 120, 127, 137, 124, 133, 158, 155, 152, 170, 148, 146, 152, 144, 135, 140, 146, 166, 176, 170, 181, 177, 276, 944,
+
+*/
+-----------------------------------
+using OpenCvSharp;
+
+
+
+namespace hue_histogram
+
+{
+
+    internal class Program
+
+    {
+
+        // Hue 채널에 대한 히스토그램을 계산하는 함수
+
+        static void CalcHisto(Mat image, out Mat hist, int bins, int rangeMax = 256)
+
+        {
+
+            int[] histSize = { bins };            // 히스토그램 계급 개수
+
+            Rangef[] ranges = { new Rangef(0, rangeMax) };  // 히스토그램 범위
+
+            int[] channels = { 0 };                // 채널 목록
+
+
+
+            hist = new Mat();
+
+            Cv2.CalcHist(new[] { image }, channels, null, hist, 1, histSize, ranges);
+
+        }
+
+
+
+        // hue 채널에 대한 색상 팔레트 행렬 생성
+
+        static Mat MakePalette(int rows)
+
+        {
+
+            Mat hsv = new Mat(rows, 1, MatType.CV_8UC3);
+
+            for (int i = 0; i < rows; i++)
+
+            {
+
+                byte hue = (byte)((float)i / rows * 180);
+
+                hsv.At<Vec3b>(i, 0) = new Vec3b(hue, 255, 255);
+
+            }
+
+
+
+            //hsv.CvtColor(ColorConversionCodes.HSV2BGR); // C++처럼만 하면 변환이 안됨!!!
+
+            //return hsv;                               //복사본을 만들어 출력
+
+            Mat bgrPalette = new Mat();
+
+            Cv2.CvtColor(hsv, bgrPalette, ColorConversionCodes.HSV2RGB);
+
+            return bgrPalette;
+
+        }
+
+
+
+        // Hue 히스토그램을 그려주는 함수
+
+        static void DrawHistHue(Mat hist, out Mat histImg, Size size)
+
+        {
+
+            Mat hsvPalette = MakePalette(hist.Rows);
+
+            histImg = new Mat(size, MatType.CV_8UC3, new Scalar(255, 255, 255));
+
+            float bin = (float)histImg.Cols / hist.Rows;
+
+            Cv2.Normalize(hist, hist, 0, histImg.Rows, NormTypes.MinMax);
+
+
+
+            for (int i = 0; i < hist.Rows; i++)
+
+            {
+
+                float start_x = i * bin;
+
+                float end_x = (i + 1) * bin;
+
+                Point pt1 = new Point((int)start_x, 0);
+
+                Point pt2 = new Point((int)end_x, (int)hist.At<float>(i));
+
+
+
+                //Scalar color = hsvPalette.At<Vec3b>(i, 0);
+
+                Vec3b colorVec = hsvPalette.At<Vec3b>(i, 0);
+
+                Scalar color = new Scalar(colorVec.Item2, colorVec.Item1, colorVec.Item0);
+
+
+
+                Cv2.Rectangle(histImg, pt1, pt2, color, -1);
+
+            }
+
+            Cv2.Flip(histImg, histImg, FlipMode.X);
+
+        }
+
+        static void Main(string[] args)
+
+        {
+
+            Mat image = Cv2.ImRead("C:\\Temp\\opencv\\hue_hist.jpg", ImreadModes.Color);
+
+            if (image.Empty())
+
+            {
+
+                Console.WriteLine("이미지를 로드할 수 없습니다.");
+
+                return;
+
+            }
+
+
+
+            Mat hsvImg = new Mat();
+
+            Cv2.CvtColor(image, hsvImg, ColorConversionCodes.BGR2HSV);
+
+            Mat[] hsvChannels = Cv2.Split(hsvImg);
+
+
+
+            Mat histHue, histHueImg;
+
+            CalcHisto(hsvChannels[0], out histHue, 18, 180);
+
+            Size size = new Size(256, 200);
+
+            DrawHistHue(histHue, out histHueImg, size);
+
+
+
+            Cv2.ImShow("hist_hue_img", histHueImg);
+
+            Cv2.ImShow("image", image);
+
+            Cv2.WaitKey();
+
+        }
+
+    }
+
+}
+---------------------------------------------
+using OpenCvSharp;
+
+namespace ConsoleApp121
+{
+    internal class Program
+    {
+        static void CalcHisto(Mat image, out Mat hist, int bins, int rangeMax = 256)
+        {
+            int[] histSize = { bins };
+            Rangef[] ranges = { new Rangef(0, rangeMax) };
+            int[] channels = { 0 };
+
+            hist = new Mat();
+            Cv2.CalcHist(new Mat[] { image }, channels, null, hist, 1, histSize, ranges);
+        }
+
+        static void DrawHisto(Mat hist, out Mat histImg, Size size)
+        {
+            histImg = new Mat(size, MatType.CV_8U, new Scalar(255));
+            float bin = (float)histImg.Cols / hist.Rows;
+            Cv2.Normalize(hist, hist, 0, size.Height, NormTypes.MinMax);
+
+            for (int i = 0; i < hist.Rows; i++)
+            {
+                float idx1 = i * bin;
+                float idx2 = (i + 1) * bin;
+                Point pt1 = new Point((int)idx1, 0);
+                Point pt2 = new Point((int)idx2, (int)hist.At<float>(i));
+
+                if (pt2.Y > 0)
+                    Cv2.Rectangle(histImg, pt1, pt2, Scalar.Black, -1);
+            }
+            Cv2.Flip(histImg, histImg, FlipMode.X);
+        }
+
+        static int SearchValueIdx(Mat hist, int bias = 0)
+        {
+            for (int i = 0; i < hist.Rows; i++)
+            {
+                int idx = Math.Abs(bias - i);
+                if (hist.At<float>(idx) > 0) return idx;
+            }
+            return -1;
+        }
+
+        static void Main(string[] args)
+        {
+            Mat image = Cv2.ImRead("c:\\Temp\\1.jpg", ImreadModes.Grayscale);
+            if (image.Empty())
+            {
+                Console.WriteLine("이미지를 로드할 수 없습니다.");
+                return;
+            }
+
+            Mat hist, histDst, histImg, histDstImg;
+            int histSize = 64, ranges = 256;
+            CalcHisto(image, out hist, histSize, ranges);
+
+            float binWidth = (float)ranges / histSize;
+            int lowValue = (int)(SearchValueIdx(hist, 0) * binWidth);
+            int highValue = (int)(SearchValueIdx(hist, hist.Rows - 1) * binWidth);
+            Console.WriteLine($"high_value = {highValue}");
+            Console.WriteLine($"low_value = {lowValue}");
+
+            int dValue = highValue - lowValue;
+            Mat dst = new Mat();
+            Cv2.Subtract(image, new Scalar(lowValue), dst);
+            Cv2.Multiply(dst, new Scalar(255.0 / dValue), dst);
+            Cv2.Threshold(dst, dst, 255, 255, ThresholdTypes.Trunc);
+            Cv2.Threshold(dst, dst, 0, 0, ThresholdTypes.Tozero);
+
+            CalcHisto(dst, out histDst, histSize, ranges);
+            DrawHisto(hist, out histImg, new Size(256, 200));
+            DrawHisto(histDst, out histDstImg, new Size(256, 200));
+
+            Cv2.ImShow("image", image);
+            Cv2.ImShow("dst-stretching", dst);
+            Cv2.ImShow("img_hist", histImg);
+            Cv2.ImShow("dst_hist", histDstImg);
+            Cv2.WaitKey();
+            Cv2.DestroyAllWindows();
+        }
+    }
+}
+
+-----------------------------------------------------------------------------
