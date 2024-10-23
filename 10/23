@@ -1,0 +1,115 @@
+using OpenCvSharp;
+
+namespace ConsoleApp122
+{
+    internal class Program
+    {
+        static void Main(string[] args)
+        {
+            // 이미지 파일 경로 설정
+            string imagePath = "C:\\Temp\\pic1.png";
+
+            // 이미지 로드
+            Mat BGR_img = Cv2.ImRead(imagePath, ImreadModes.Color);
+            if (BGR_img.Empty())
+            {
+                Console.WriteLine("이미지를 불러올 수 없습니다.");
+                return;
+            }
+
+            // 흰색 스칼라 (255, 255, 255)
+            Scalar white = new Scalar(255, 255, 255);
+
+            // CMY 이미지 생성: CMY = 흰색 - BGR
+            Mat CMY_img = new Mat();
+            Cv2.Subtract(white, BGR_img, CMY_img);
+
+            // CMY 채널 분리
+            Mat[] CMY_arr = Cv2.Split(CMY_img);
+
+            // 이미지 출력
+            Cv2.ImShow("BGR Image", BGR_img);
+            Cv2.ImShow("CMY Image", CMY_img);
+            Cv2.ImShow("Yellow Channel", CMY_arr[0]); // 노랑색 채널
+            Cv2.ImShow("Magenta Channel", CMY_arr[1]); // 다홍색 채널
+            Cv2.ImShow("Cyan Channel", CMY_arr[2]); // 청록색 채널
+
+            // 키 입력 대기
+            Cv2.WaitKey(0);
+            Cv2.DestroyAllWindows();
+        }
+    }
+}
+--------------------------------------------------------
+using OpenCvSharp;
+
+namespace ConsoleApp122
+{
+    internal class Program
+    {
+        // 범위 변수 설정
+        static int th1 = 50;
+        static int th2 = 100;
+        static Mat hue = new Mat();
+
+        static void Main(string[] args)
+        {
+            // 이미지 파일 경로 설정
+            string imagePath = "C:\\Temp\\1.jpg"; // 경로를 실제 이미지 경로로 설정하세요
+
+            // 이미지 로드
+            Mat BGR_img = Cv2.ImRead(imagePath, ImreadModes.Color);
+            if (BGR_img.Empty())
+            {
+                Console.WriteLine("이미지를 불러올 수 없습니다.");
+                return;
+            }
+
+            // HSV 변환
+            Mat HSV = new Mat();
+            Mat[] hsvChannels = new Mat[3];
+            Cv2.CvtColor(BGR_img, HSV, ColorConversionCodes.BGR2HSV);
+            Cv2.Split(HSV, out hsvChannels);
+            hsvChannels[0].CopyTo(hue); // Hue 채널 복사
+
+            // 결과 창 생성
+            Cv2.NamedWindow("result", WindowFlags.AutoSize);
+
+            // 트랙바 등록
+            Cv2.CreateTrackbar("Hue_th1", "result", ref th1, 255, OnThreshold);
+            Cv2.CreateTrackbar("Hue_th2", "result", ref th2, 255, OnThreshold);
+
+            // 초기 임계값 함수 호출
+            OnThreshold(0, IntPtr.Zero);
+
+            // 원본 이미지 출력
+            Cv2.ImShow("BGR Image", BGR_img);
+            Cv2.WaitKey(0);
+            Cv2.DestroyAllWindows();
+        }
+
+        // 임계값 처리 함수
+        private static void OnThreshold(int pos, IntPtr userdata)
+        {
+            Mat result = new Mat(hue.Size(), MatType.CV_8U, new Scalar(0));
+
+            // 선택 범위 내의 값 설정
+            for (int i = 0; i < hue.Rows; i++)
+            {
+                for (int j = 0; j < hue.Cols; j++)
+                {
+                    byte pixelValue = hue.At<byte>(i, j);
+                    if (pixelValue >= th1 && pixelValue < th2)
+                    {
+                        result.Set<byte>(i, j, 255);
+                    }
+                }
+            }
+
+            // 결과 이미지 출력
+            Cv2.ImShow("result", result);
+        }
+    }
+}
+
+--------------------------------------------
